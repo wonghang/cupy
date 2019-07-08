@@ -448,12 +448,12 @@ class TestConvolutionNoAvailableAlgorithm(unittest.TestCase):
            # no counterpart in numpy
            # libcudnn.CUDNN_REDUCE_TENSOR_MUL_NO_ZEROS,
     ],
-    'axis': [(0,)]
+    'axis': [(0,),(1,),(2,),(0,1),(0,2),(1,2,3),(0,2,3)]
 }))
 @unittest.skipIf(not cudnn_enabled,'cuDNN is not available.')
 class TestReduceTensor(unittest.TestCase):
     def setUp(self):
-        self.A = numpy.random.uniform(size=self.shape).astype(self.dtype)
+        self.A = numpy.random.uniform(low=-1.,high=1.,size=self.shape).astype(self.dtype)
 
         self.numpy_func = {
             libcudnn.CUDNN_REDUCE_TENSOR_ADD: lambda x: numpy.sum(x,axis=self.axis,keepdims=self.keepdims), 
@@ -467,14 +467,23 @@ class TestReduceTensor(unittest.TestCase):
         }[self.op]
         
     def test_reduce_tensor(self):
-        expect = self.numpy_func(self.A)
-        if expect is None:
+        for a in self.axis:
+            if a >= self.A.ndim:
+                return
+
+        # numpy.linalg.norm does not support multiple axis
+        # 2-tuple of axis is a different thing
+        if self.op in [libcudnn.CUDNN_REDUCE_TENSOR_NORM1,libcudnn.CUDNN_REDUCE_TENSOR_NORM2] and len(self.axis) > 1:
             return
+        expect = self.numpy_func(self.A)
             
         cupy_A = cupy.array(self.A)
-        B = cudnn.reduce_tensor(self.op,cupy_A,self.axis,keepdims=self.keepdims)
-        result = cupy.asnumpy(B)
+        result = cudnn.reduce_tensor(self.op,cupy_A,self.axis,keepdims=self.keepdims)
 
-        decimal = 4 if numpy.dtype(self.dtype) == 'f' else 6
-
-        testing.assert_array_almost_equal(result,expect,decimal=decimal)
+        if numpy.dtype(self.dtype) == 'f':
+            atol = 1e-4
+            rtol = 1e-4
+        else:
+            atol = 1e-8
+            rtol = 1e-7
+        testing.assert_allclose(result,expect,rtol=rtol,atol=atol)
