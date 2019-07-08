@@ -431,3 +431,27 @@ class TestConvolutionNoAvailableAlgorithm(unittest.TestCase):
             return RuntimeError
         else:
             return libcudnn.CuDNNError
+
+
+@testing.parameterize(*testing.product({
+    'dtype': [numpy.float32, numpy.float64],
+    'shape': [(100,),(10,20,),(10,23,45),(11,12,13,14),(5,11,12,13,14)],
+    'keepdims': [True,False],
+}))
+@unittest.skipIf(not cudnn_enabled,'cuDNN is not available.')
+class TestReduceTensor(unittest.TestCase):
+    def setUp(self):
+        self.A = numpy.random.uniform(size=self.shape).astype(self.dtype)
+
+    def test_reduce_tensor(self):
+        axis = (0,)
+        
+        cupy_A = cupy.array(self.A)
+        B = cudnn.reduce_tensor(0,cupy_A,axis,keepdims=self.keepdims)
+
+        expect = numpy.sum(self.A,axis=axis,keepdims=self.keepdims)
+        result = cupy.asnumpy(B)
+
+        decimal = 4 if numpy.dtype(self.dtype) == 'f' else 6
+
+        testing.assert_array_almost_equal(result,expect,decimal=decimal)
