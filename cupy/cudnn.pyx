@@ -2146,7 +2146,7 @@ def batch_normalization_backward(
 
 def reduce_tensor(
         int op, core.ndarray A, tuple reduce_axis,
-        bint nan = False, bint keepdims = False):
+        bint keepdims = False):
     A = core._internal_ascontiguousarray(A)
     dtype = A.dtype
 
@@ -2192,11 +2192,10 @@ def reduce_tensor(
         raise ValueError('cupy.cudnn supports float32 and float64 only')
         
     handle = get_handle()
-    
-    nan_prop = cudnn.CUDNN_NOT_PROPAGATE_NAN if nan else cudnn.CUDNN_PROPAGATE_NAN
+
     cudnn.setReduceTensorDescriptor(reduce_desc.value, op,
                                     get_data_type(dtype),
-                                    nan_prop,
+                                    cudnn.CUDNN_NOT_PROPAGATE_NAN,
                                     cudnn.CUDNN_REDUCE_TENSOR_NO_INDICES,
                                     cudnn.CUDNN_32BIT_INDICES)
 

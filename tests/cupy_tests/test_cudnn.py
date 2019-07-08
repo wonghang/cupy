@@ -448,7 +448,7 @@ class TestConvolutionNoAvailableAlgorithm(unittest.TestCase):
            # no counterpart in numpy
            # libcudnn.CUDNN_REDUCE_TENSOR_MUL_NO_ZEROS,
     ],
-    'axis': [(0,),(1,),(2,),(0,1),(0,2),(1,2,3),(0,2,3)]
+    'axis': [(0,),(1,),(2,),(0,1),(0,2),(1,2,3),(0,2,3)],
 }))
 @unittest.skipIf(not cudnn_enabled,'cuDNN is not available.')
 class TestReduceTensor(unittest.TestCase):
@@ -465,16 +465,20 @@ class TestReduceTensor(unittest.TestCase):
             libcudnn.CUDNN_REDUCE_TENSOR_NORM1: lambda x: numpy.linalg.norm(x,ord=1,axis=self.axis,keepdims=self.keepdims), 
             libcudnn.CUDNN_REDUCE_TENSOR_NORM2: lambda x: numpy.linalg.norm(x,ord=2,axis=self.axis,keepdims=self.keepdims), 
         }[self.op]
-        
-    def test_reduce_tensor(self):
-        for a in self.axis:
-            if a >= self.A.ndim:
-                return
 
         # numpy.linalg.norm does not support multiple axis
         # 2-tuple of axis is a different thing
         if self.op in [libcudnn.CUDNN_REDUCE_TENSOR_NORM1,libcudnn.CUDNN_REDUCE_TENSOR_NORM2] and len(self.axis) > 1:
+            self.numpy_func = None
+
+        for a in self.axis:
+            if a >= self.A.ndim:
+                self.numpy_func = None
+            
+    def test_reduce_tensor(self):
+        if self.numpy_func is None:
             return
+
         expect = self.numpy_func(self.A)
             
         cupy_A = cupy.array(self.A)
