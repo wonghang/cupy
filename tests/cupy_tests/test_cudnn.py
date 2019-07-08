@@ -437,19 +437,42 @@ class TestConvolutionNoAvailableAlgorithm(unittest.TestCase):
     'dtype': [numpy.float32, numpy.float64],
     'shape': [(100,),(10,20,),(10,23,45),(11,12,13,14),(5,11,12,13,14)],
     'keepdims': [True,False],
+    'op': [libcudnn.CUDNN_REDUCE_TENSOR_ADD,
+           libcudnn.CUDNN_REDUCE_TENSOR_MUL,
+           libcudnn.CUDNN_REDUCE_TENSOR_MIN,
+           libcudnn.CUDNN_REDUCE_TENSOR_MAX,
+           libcudnn.CUDNN_REDUCE_TENSOR_AMAX,
+           libcudnn.CUDNN_REDUCE_TENSOR_AVG,
+           libcudnn.CUDNN_REDUCE_TENSOR_NORM1,
+           libcudnn.CUDNN_REDUCE_TENSOR_NORM2,
+           # no counterpart in numpy
+           # libcudnn.CUDNN_REDUCE_TENSOR_MUL_NO_ZEROS,
+    ],
+    'axis': [(0,)]
 }))
 @unittest.skipIf(not cudnn_enabled,'cuDNN is not available.')
 class TestReduceTensor(unittest.TestCase):
     def setUp(self):
         self.A = numpy.random.uniform(size=self.shape).astype(self.dtype)
 
-    def test_reduce_tensor(self):
-        axis = (0,)
+        self.numpy_func = {
+            libcudnn.CUDNN_REDUCE_TENSOR_ADD: lambda x: numpy.sum(x,axis=self.axis,keepdims=self.keepdims), 
+            libcudnn.CUDNN_REDUCE_TENSOR_MUL: lambda x: numpy.prod(x,axis=self.axis,keepdims=self.keepdims), 
+            libcudnn.CUDNN_REDUCE_TENSOR_MIN: lambda x: numpy.amin(x,axis=self.axis,keepdims=self.keepdims), 
+            libcudnn.CUDNN_REDUCE_TENSOR_MAX: lambda x: numpy.amax(x,axis=self.axis,keepdims=self.keepdims), 
+            libcudnn.CUDNN_REDUCE_TENSOR_AMAX: lambda x: numpy.amax(numpy.abs(x),axis=self.axis,keepdims=self.keepdims),
+            libcudnn.CUDNN_REDUCE_TENSOR_AVG: lambda x: numpy.mean(x,axis=self.axis,keepdims=self.keepdims), 
+            libcudnn.CUDNN_REDUCE_TENSOR_NORM1: lambda x: numpy.linalg.norm(x,ord=1,axis=self.axis,keepdims=self.keepdims), 
+            libcudnn.CUDNN_REDUCE_TENSOR_NORM2: lambda x: numpy.linalg.norm(x,ord=2,axis=self.axis,keepdims=self.keepdims), 
+        }[self.op]
         
+    def test_reduce_tensor(self):
+        expect = self.numpy_func(self.A)
+        if expect is None:
+            return
+            
         cupy_A = cupy.array(self.A)
-        B = cudnn.reduce_tensor(0,cupy_A,axis,keepdims=self.keepdims)
-
-        expect = numpy.sum(self.A,axis=axis,keepdims=self.keepdims)
+        B = cudnn.reduce_tensor(self.op,cupy_A,self.axis,keepdims=self.keepdims)
         result = cupy.asnumpy(B)
 
         decimal = 4 if numpy.dtype(self.dtype) == 'f' else 6
