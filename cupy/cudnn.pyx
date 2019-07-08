@@ -2144,9 +2144,10 @@ def batch_normalization_backward(
         gbeta = gbeta.astype(dtype)
     return gx, ggamma, gbeta
 
+
 def reduce_tensor(
         int op, core.ndarray A, tuple reduce_axis,
-        bint keepdims = False):
+        bint keepdims=False):
     A = core._internal_ascontiguousarray(A)
     dtype = A.dtype
 
@@ -2155,7 +2156,7 @@ def reduce_tensor(
         raise ValueError("cuDNN reductions does not support dimension > 8")
 
     if A_ndim < 4:
-        A_shape = A.shape + (1,)*(4-A_ndim)
+        A_shape = A.shape + (1, )*(4-A_ndim)
     else:
         A_shape = A.shape
     A = A.reshape(A_shape)
@@ -2172,13 +2173,13 @@ def reduce_tensor(
         for i in range(len(out_shape[0:A_ndim])):
             if i not in reduce_axis:
                 true_out_shape.append(out_shape[i])
-            
+
     C = core.ndarray(out_shape, dtype)
 
     cdef Descriptor A_desc = create_tensor_descriptor(A)
     cdef Descriptor C_desc = create_tensor_descriptor(C)
-    cdef Descriptor reduce_desc = Descriptor(cudnn.createReduceTensorDescriptor(),
-                                             py_cudnn.destroyReduceTensorDescriptor)
+    cdef Descriptor r_desc = Descriptor(cudnn.createReduceTensorDescriptor(),
+                                        py_cudnn.destroyReduceTensorDescriptor)
 
     cdef float float_one = 1, float_zero = 0
     cdef double double_one = 1, double_zero = 0
@@ -2190,22 +2191,22 @@ def reduce_tensor(
         one = <size_t>&float_one
     else:
         raise ValueError('cupy.cudnn supports float32 and float64 only')
-        
+
     handle = get_handle()
 
-    cudnn.setReduceTensorDescriptor(reduce_desc.value, op,
+    cudnn.setReduceTensorDescriptor(r_desc.value, op,
                                     get_data_type(dtype),
                                     cudnn.CUDNN_PROPAGATE_NAN,
                                     cudnn.CUDNN_REDUCE_TENSOR_NO_INDICES,
                                     cudnn.CUDNN_32BIT_INDICES)
 
     ws_size = cudnn.getReductionWorkspaceSize(handle,
-                                              reduce_desc.value,
+                                              r_desc.value,
                                               A_desc.value,
                                               C_desc.value)
     cdef memory.MemoryPointer workspace = memory.alloc(ws_size)
-                                                               
-    cudnn.reduceTensor(handle, reduce_desc.value, <size_t>0, <size_t>0,
+
+    cudnn.reduceTensor(handle, r_desc.value, <size_t>0, <size_t>0,
                        workspace.ptr, workspace.mem.size, one,
                        A_desc.value, A.data.ptr,
                        zero, C_desc.value, C.data.ptr)
