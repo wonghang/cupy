@@ -2169,10 +2169,9 @@ def reduce_tensor(
     if keepdims:
         true_out_shape = out_shape[0:A_ndim]
     else:
-        true_out_shape = []
-        for i in range(len(out_shape[0:A_ndim])):
-            if i not in reduce_axis:
-                true_out_shape.append(out_shape[i])
+        true_out_shape = [out_shape[i] for i in
+                          range(len(out_shape[0:A_ndim]))
+                          if i not in reduce_axis]
 
     C = core.ndarray(out_shape, dtype)
 
