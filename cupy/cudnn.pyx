@@ -2195,7 +2195,7 @@ def reduce_tensor(
 
     cudnn.setReduceTensorDescriptor(reduce_desc.value, op,
                                     get_data_type(dtype),
-                                    cudnn.CUDNN_NOT_PROPAGATE_NAN,
+                                    cudnn.CUDNN_PROPAGATE_NAN,
                                     cudnn.CUDNN_REDUCE_TENSOR_NO_INDICES,
                                     cudnn.CUDNN_32BIT_INDICES)
 

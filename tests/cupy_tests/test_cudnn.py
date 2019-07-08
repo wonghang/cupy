@@ -449,12 +449,20 @@ class TestConvolutionNoAvailableAlgorithm(unittest.TestCase):
            # libcudnn.CUDNN_REDUCE_TENSOR_MUL_NO_ZEROS,
     ],
     'axis': [(0,),(1,),(2,),(0,1),(0,2),(1,2,3),(0,2,3)],
+    'nan': [False,True],
 }))
 @unittest.skipIf(not cudnn_enabled,'cuDNN is not available.')
 class TestReduceTensor(unittest.TestCase):
     def setUp(self):
-        self.A = numpy.random.uniform(low=-1.,high=1.,size=self.shape).astype(self.dtype)
+        total_size = numpy.prod(self.shape)
+        self.A = numpy.random.uniform(low=-1.,high=1.,size=total_size).astype(self.dtype)
 
+        if self.nan:
+            nan_idx = numpy.random.randint(0,total_size)
+            self.A[nan_idx] = numpy.nan
+            
+        self.A = self.A.reshape(self.shape)
+        
         self.numpy_func = {
             libcudnn.CUDNN_REDUCE_TENSOR_ADD: lambda x: numpy.sum(x,axis=self.axis,keepdims=self.keepdims), 
             libcudnn.CUDNN_REDUCE_TENSOR_MUL: lambda x: numpy.prod(x,axis=self.axis,keepdims=self.keepdims), 
